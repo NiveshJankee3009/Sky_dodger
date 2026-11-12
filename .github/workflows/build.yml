@@ -25,7 +25,8 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          # Android lint (current Flutter/AGP) needs Java 21; 17 crashes with List.removeLast().
+          java-version: '21'
 
       - uses: subosito/flutter-action@v2
         with:

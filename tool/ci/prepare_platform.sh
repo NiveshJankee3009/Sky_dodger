@@ -21,6 +21,13 @@ if [ "$PLATFORM" = "android" ]; then
   sed -i.bak "s/android:label=\"[^\"]*\"/android:label=\"$DISPLAY\"/" "$MANIFEST"
   rm -f "$MANIFEST.bak"
 
+  # Skip Android lint during release builds: it has crashed inside plugin code
+  # (firebase_core) and adds nothing to a CI release build.
+  GRADLE=android/app/build.gradle.kts
+  if [ -f "$GRADLE" ] && ! grep -q "checkReleaseBuilds" "$GRADLE"; then
+    printf '\nandroid {\n    lint {\n        checkReleaseBuilds = false\n        abortOnError = false\n    }\n}\n' >> "$GRADLE"
+  fi
+
   # App icon (legacy + adaptive + Android 13 themed), see tool/make_icons.py
   if [ -d assets/icon/android/res ]; then
     cp -R assets/icon/android/res/. android/app/src/main/res/
