@@ -1,5 +1,7 @@
 # Sky Dodger 🚀
 
+<img src="assets/icon/icon_1024.png" width="128" alt="Sky Dodger icon">
+
 A casual arcade game for Android and iOS, built with [Flutter](https://flutter.dev) and the [Flame](https://flame-engine.org) game engine.
 
 Drag anywhere on the screen to steer your ship, dodge the falling rocks and grab coins. The longer you survive, the faster it gets. Your best score is saved on the device.
@@ -90,11 +92,14 @@ lib/
   ui/
     overlays.dart              Menu, HUD, pause and game-over screens
     online_screens.dart        Leaderboard and nickname screens
+assets/icon/                   App icons (source SVGs + generated Android/iOS sets)
+assets/store/                  Play Store icon (512) and feature graphic (1024x500)
 assets/audio/                  Music and sound effects (mp3: plays on Android and iOS)
 firestore.rules                Leaderboard security rules (publish in Firebase console)
 tool/
   ci/prepare_platform.sh       CI: generates android/ios folders, app name, iOS URL scheme
   gen_firebase_options.py      Builds firebase_options.dart from firebase/ files
+  make_icons.py                Regenerates app icons + store graphics (needs rsvg-convert)
   make_audio.py                Regenerates the sound effects (python3 + numpy + scipy + ffmpeg)
   music_upbeat.py              Regenerates the music: python3 tool/music_upbeat.py assets/audio
 test/

@@ -20,11 +20,23 @@ if [ "$PLATFORM" = "android" ]; then
   MANIFEST=android/app/src/main/AndroidManifest.xml
   sed -i.bak "s/android:label=\"[^\"]*\"/android:label=\"$DISPLAY\"/" "$MANIFEST"
   rm -f "$MANIFEST.bak"
+
+  # App icon (legacy + adaptive + Android 13 themed), see tool/make_icons.py
+  if [ -d assets/icon/android/res ]; then
+    cp -R assets/icon/android/res/. android/app/src/main/res/
+  fi
 fi
 
 if [ "$PLATFORM" = "ios" ]; then
   PLIST=ios/Runner/Info.plist
   plutil -replace CFBundleDisplayName -string "$DISPLAY" "$PLIST"
+
+  # App icon, see tool/make_icons.py
+  ICONSET=ios/Runner/Assets.xcassets/AppIcon.appiconset
+  if [ -d assets/icon/ios/AppIcon.appiconset ]; then
+    rm -rf "$ICONSET"
+    cp -R assets/icon/ios/AppIcon.appiconset "$ICONSET"
+  fi
 
   FIREBASE_PLIST=firebase/GoogleService-Info.plist
   if [ -f "$FIREBASE_PLIST" ]; then
