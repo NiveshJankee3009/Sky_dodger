@@ -12,6 +12,7 @@ import 'components/player.dart';
 import 'components/rock.dart';
 import 'components/starfield.dart';
 import 'components/touch_area.dart';
+import 'audio_manager.dart';
 import 'difficulty.dart';
 import 'high_score_store.dart';
 
@@ -26,10 +27,14 @@ abstract final class Overlays {
 }
 
 class SkyDodgerGame extends FlameGame with HasCollisionDetection {
-  SkyDodgerGame({required this.highScores, math.Random? random})
-      : _rng = random ?? math.Random();
+  SkyDodgerGame({
+    required this.highScores,
+    required this.audio,
+    math.Random? random,
+  }) : _rng = random ?? math.Random();
 
   final HighScoreStore highScores;
+  final AudioManager audio;
   final math.Random _rng;
   final Difficulty difficulty = const Difficulty();
   final ScoreKeeper scoreKeeper = ScoreKeeper();
@@ -71,6 +76,7 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
     lastRunWasRecord = false;
     player.reset();
     state = GameState.playing;
+    audio.play(Sfx.start);
     overlays
       ..remove(Overlays.menu)
       ..remove(Overlays.gameOver)
@@ -108,6 +114,7 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
     if (state != GameState.playing) return;
     state = GameState.gameOver;
     HapticFeedback.heavyImpact();
+    audio.play(Sfx.crash);
     player.visible = false;
     _explode(player.position.clone());
 
@@ -122,6 +129,7 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
           overlays
             ..remove(Overlays.hud)
             ..add(Overlays.gameOver);
+          if (lastRunWasRecord) audio.play(Sfx.newBest);
         },
       ),
     );
@@ -133,6 +141,7 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
     scoreKeeper.addCoin();
     score.value = scoreKeeper.score;
     HapticFeedback.selectionClick();
+    audio.play(Sfx.coin);
     _sparkle(coin.position.clone());
   }
 

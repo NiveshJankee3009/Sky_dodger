@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # needed to attach the APK to a GitHub Release on tags
+  contents: write # needed to attach builds to a GitHub Release on tags
 
 jobs:
   android:
@@ -26,12 +26,12 @@ jobs:
           channel: stable
           cache: true
 
-      # Generates the android/ and ios/ folders if they aren't committed yet.
-      # flutter create never overwrites existing files (lib/, test/, pubspec).
-      - name: Generate platform folders (if missing)
+      # Generates android/ if it isn't committed yet. flutter create never
+      # overwrites existing files (lib/, test/, pubspec.yaml).
+      - name: Generate Android folder (if missing)
         run: |
           if [ ! -d android ]; then
-            flutter create --platforms=android,ios --org com.github.skydodger --project-name sky_dodger .
+            flutter create --platforms=android --org com.github.skydodger --project-name sky_dodger .
           fi
 
       - run: flutter pub get
@@ -42,7 +42,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: sky-dodger-apk
+          name: sky-dodger-android
           path: build/app/outputs/flutter-apk/app-release.apk
 
       - name: Publish release (tags only)
@@ -50,3 +50,43 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: build/app/outputs/flutter-apk/app-release.apk
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate iOS folder (if missing)
+        run: |
+          if [ ! -d ios ]; then
+            flutter create --platforms=ios --org com.github.skydodger --project-name sky_dodger .
+          fi
+
+      - run: flutter pub get
+
+      # Builds the iPhone app without signing (no Apple account needed).
+      # The result proves the iOS build works and can be signed/sideloaded later.
+      - run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p build/ipa/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ipa/Payload/
+          cd build/ipa && zip -qr sky_dodger-unsigned.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: sky-dodger-ios-unsigned
+          path: build/ipa/sky_dodger-unsigned.ipa
+
+      - name: Publish release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/ipa/sky_dodger-unsigned.ipa

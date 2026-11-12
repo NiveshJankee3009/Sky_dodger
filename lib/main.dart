@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'game/audio_manager.dart';
 import 'game/high_score_store.dart';
 import 'game/sky_dodger_game.dart';
 import 'ui/overlays.dart';
@@ -12,7 +15,12 @@ Future<void> main() async {
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   final highScores = await HighScoreStore.load();
-  runApp(SkyDodgerApp(game: SkyDodgerGame(highScores: highScores)));
+  final audio = await AudioManager.load();
+  unawaited(audio.init()); // load sounds in the background, start music
+
+  runApp(
+    SkyDodgerApp(game: SkyDodgerGame(highScores: highScores, audio: audio)),
+  );
 }
 
 class SkyDodgerApp extends StatelessWidget {
