@@ -235,6 +235,22 @@ class GameOverOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _GameOverCard(game: game),
+        if (game.lastRunWasRecord) const IgnorePointer(child: _Confetti()),
+      ],
+    );
+  }
+}
+
+class _GameOverCard extends StatelessWidget {
+  const _GameOverCard({required this.game});
+  final SkyDodgerGame game;
+
+  @override
+  Widget build(BuildContext context) {
     final record = game.lastRunWasRecord;
     return _Dimmed(
       child: _GlassCard(
@@ -753,4 +769,108 @@ class _Dimmed extends StatelessWidget {
       ),
     );
   }
+}
+
+// =================================================================== MOTION
+
+/// Fades and slightly scales its child in when it first appears.
+class FadeIn extends StatelessWidget {
+  const FadeIn({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.scale(scale: 0.96 + 0.04 * t, child: child),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _ConfettiPiece {
+  _ConfettiPiece(math.Random r)
+      : x = r.nextDouble(),
+        delay = r.nextDouble() * 0.6,
+        speed = 0.25 + r.nextDouble() * 0.35,
+        sway = 20 + r.nextDouble() * 40,
+        spin = (r.nextDouble() - 0.5) * 14,
+        width = 6 + r.nextDouble() * 6,
+        color = const [_cyan, _violet, _pink, _gold, Colors.white][r.nextInt(5)];
+
+  final double x;
+  final double delay;
+  final double speed;
+  final double sway;
+  final double spin;
+  final double width;
+  final Color color;
+}
+
+/// Falling confetti for a new best score.
+class _Confetti extends StatefulWidget {
+  const _Confetti();
+
+  @override
+  State<_Confetti> createState() => _ConfettiState();
+}
+
+class _ConfettiState extends State<_Confetti>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 3500),
+  )..forward();
+  final _pieces = List.generate(90, (_) => _ConfettiPiece(math.Random()));
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) =>
+          CustomPaint(painter: _ConfettiPainter(_pieces, _c.value * 3.5)),
+    );
+  }
+}
+
+class _ConfettiPainter extends CustomPainter {
+  _ConfettiPainter(this.pieces, this.seconds);
+  final List<_ConfettiPiece> pieces;
+  final double seconds;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint();
+    for (final p in pieces) {
+      final t = seconds - p.delay;
+      if (t <= 0) continue;
+      final y = -20 + t * p.speed * size.height;
+      if (y > size.height + 20) continue;
+      final x = p.x * size.width + math.sin(t * 3 + p.x * 10) * p.sway;
+      final fade = (1 - (seconds / 3.5 - 0.7) / 0.3).clamp(0.0, 1.0);
+      paint.color = p.color.withValues(alpha: fade);
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(t * p.spin);
+      canvas.drawRect(
+        Rect.fromCenter(center: Offset.zero, width: p.width, height: p.width * 0.45),
+        paint,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter old) => old.seconds != seconds;
 }

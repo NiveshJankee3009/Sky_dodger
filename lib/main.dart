@@ -48,10 +48,13 @@ class SkyDodgerApp extends StatelessWidget {
         body: GameWidget<SkyDodgerGame>(
           game: game,
           overlayBuilderMap: {
-            Overlays.menu: (context, game) => MenuOverlay(game: game),
-            Overlays.hud: (context, game) => HudOverlay(game: game),
-            Overlays.pause: (context, game) => PauseOverlay(game: game),
-            Overlays.gameOver: (context, game) => GameOverOverlay(game: game),
+            Overlays.menu: (context, game) =>
+                FadeIn(child: MenuOverlay(game: game)),
+            Overlays.hud: (context, game) => FadeIn(child: HudOverlay(game: game)),
+            Overlays.pause: (context, game) =>
+                FadeIn(child: PauseOverlay(game: game)),
+            Overlays.gameOver: (context, game) =>
+                FadeIn(child: GameOverOverlay(game: game)),
           },
         ),
       ),

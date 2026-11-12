@@ -6,7 +6,7 @@ import 'package:flame/components.dart';
 
 import '../sky_dodger_game.dart';
 
-/// A falling asteroid. Drawn as a jagged polygon so each one looks different.
+/// A falling asteroid drawn from one of several sprites.
 class Rock extends PositionComponent with HasGameReference<SkyDodgerGame> {
   Rock({
     required this.radius,
@@ -15,41 +15,28 @@ class Rock extends PositionComponent with HasGameReference<SkyDodgerGame> {
     required math.Random rng,
   })  : _spin = (rng.nextDouble() - 0.5) * 3,
         _drift = (rng.nextDouble() - 0.5) * 40,
-        _path = _buildPath(radius, rng),
+        _variant = rng.nextInt(3),
         super(
           position: position,
           size: Vector2.all(radius * 2),
           anchor: Anchor.center,
+          angle: rng.nextDouble() * math.pi * 2,
         );
 
   final double radius;
   final double speed;
   final double _spin;
   final double _drift;
-  final Path _path;
+  final int _variant;
 
-  static final _fill = Paint()..color = const Color(0xFF8D6E63);
-  static final _edge = Paint()
-    ..color = const Color(0xFF5D4037)
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 3;
-  static final _crater = Paint()..color = const Color(0xFF6D4C41);
+  static final _paint = Paint()..filterQuality = FilterQuality.medium;
 
-  static Path _buildPath(double r, math.Random rng) {
-    const points = 10;
-    final path = Path();
-    for (var i = 0; i < points; i++) {
-      final a = i / points * math.pi * 2;
-      final rr = r * (0.78 + rng.nextDouble() * 0.22);
-      final p = Offset(r + math.cos(a) * rr, r + math.sin(a) * rr);
-      if (i == 0) {
-        path.moveTo(p.dx, p.dy);
-      } else {
-        path.lineTo(p.dx, p.dy);
-      }
-    }
-    return path..close();
-  }
+  /// Average colour of this rock, used for debris when it explodes.
+  Color get debrisColor => const [
+        Color(0xFF8D6E63),
+        Color(0xFF78909C),
+        Color(0xFFA1887F),
+      ][_variant];
 
   @override
   Future<void> onLoad() async {
@@ -76,9 +63,6 @@ class Rock extends PositionComponent with HasGameReference<SkyDodgerGame> {
 
   @override
   void render(Canvas canvas) {
-    canvas.drawPath(_path, _fill);
-    canvas.drawPath(_path, _edge);
-    canvas.drawCircle(Offset(radius * 0.7, radius * 0.8), radius * 0.18, _crater);
-    canvas.drawCircle(Offset(radius * 1.3, radius * 1.2), radius * 0.12, _crater);
+    game.sprites.rocks[_variant].render(canvas, size: size, overridePaint: _paint);
   }
 }

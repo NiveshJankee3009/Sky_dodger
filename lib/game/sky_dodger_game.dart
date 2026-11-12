@@ -9,12 +9,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'components/coin.dart';
+import 'components/effects.dart';
 import 'components/player.dart';
 import 'components/rock.dart';
+import 'components/space_background.dart';
 import 'components/starfield.dart';
 import 'components/touch_area.dart';
 import 'audio_manager.dart';
 import 'difficulty.dart';
+import 'game_sprites.dart';
 import 'high_score_store.dart';
 import '../online/online_service.dart';
 
@@ -50,12 +53,20 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
   final ValueNotifier<int> score = ValueNotifier(0);
 
   late final Player player;
+  late final GameSprites sprites;
   GameState state = GameState.menu;
   bool lastRunWasRecord = false;
 
   double elapsed = 0;
   double _rockTimer = 0;
   double _coinTimer = 0;
+  double _countdown = 0;
+
+  // Screen shake.
+  double _shakeTime = 0;
+  double _shakeDuration = 1;
+  double _shakeStrength = 0;
+  Offset _shakeOffset = Offset.zero;
 
   /// Speed used by the starfield; idles slowly on menus.
   double get scrollSpeed =>
@@ -66,8 +77,15 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
 
   @override
   Future<void> onLoad() async {
+    sprites = await GameSprites.load(images);
     player = Player();
-    await addAll([Starfield(), player, TouchArea()]);
+    await addAll([
+      SpaceBackground(),
+      Starfield(),
+      ShipTrail(),
+      player,
+      TouchArea(),
+    ]);
     overlays.add(Overlays.menu);
   }
 
@@ -84,6 +102,8 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
     onlineStatus.value = null;
     player.reset();
     state = GameState.playing;
+    _countdown = CountdownText.total;
+    add(CountdownText());
     audio.play(Sfx.start);
     overlays
       ..remove(Overlays.menu)
@@ -124,7 +144,11 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
     HapticFeedback.heavyImpact();
     audio.play(Sfx.crash);
     player.visible = false;
-    _explode(player.position.clone());
+    final at = player.position.clone();
+    _explode(at);
+    shake(strength: 14, duration: 0.5);
+    add(ScreenFlash());
+    add(Shockwave(position: at, color: const Color(0xFFFF8A65)));
 
     lastRunWasRecord = await highScores.submit(scoreKeeper.score);
     unawaited(_submitOnline(scoreKeeper.score));
@@ -169,15 +193,56 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
     score.value = scoreKeeper.score;
     HapticFeedback.selectionClick();
     audio.play(Sfx.coin);
+    add(
+      FloatingText(
+        '+${ScoreKeeper.coinBonus}',
+        position: coin.position.clone(),
+      ),
+    );
     _sparkle(coin.position.clone());
   }
 
   // ---------------------------------------------------------------- loop
 
+  /// Shakes the whole scene for [duration] seconds.
+  void shake({double strength = 10, double duration = 0.4}) {
+    _shakeStrength = strength;
+    _shakeDuration = duration;
+    _shakeTime = duration;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    if (_shakeOffset == Offset.zero) {
+      super.render(canvas);
+      return;
+    }
+    canvas.save();
+    canvas.translate(_shakeOffset.dx, _shakeOffset.dy);
+    super.render(canvas);
+    canvas.restore();
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
+
+    if (_shakeTime > 0) {
+      _shakeTime -= dt;
+      final k = (_shakeTime / _shakeDuration).clamp(0.0, 1.0) * _shakeStrength;
+      _shakeOffset = Offset(
+        (_rng.nextDouble() * 2 - 1) * k,
+        (_rng.nextDouble() * 2 - 1) * k,
+      );
+    } else {
+      _shakeOffset = Offset.zero;
+    }
+
     if (state != GameState.playing) return;
+    if (_countdown > 0) {
+      _countdown -= dt; // "3, 2, 1, GO!" - no spawning or scoring yet
+      return;
+    }
 
     elapsed += dt;
     scoreKeeper.tick(dt);
@@ -227,7 +292,11 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
   }
 
   void _clearHazards() {
-    removeAll(children.where((c) => c is Rock || c is Coin).toList());
+    removeAll(
+      children
+          .where((c) => c is Rock || c is Coin || c is TransientEffect)
+          .toList(),
+    );
   }
 
   // ---------------------------------------------------------------- effects
@@ -250,6 +319,79 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
               child: CircleParticle(
                 radius: 1.5 + _rng.nextDouble() * 3,
                 paint: Paint()..color = colors[i % colors.length],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    // Ship debris: spinning shards in the ship's colours.
+    const shardColors = [Color(0xFFFFFFFF), Color(0xFFB388FF), Color(0xFF4FC3F7)];
+    add(
+      ParticleSystemComponent(
+        position: at,
+        priority: 20,
+        particle: Particle.generate(
+          count: 14,
+          lifespan: 1.2,
+          generator: (i) {
+            final a = _rng.nextDouble() * math.pi * 2;
+            final speed = 60 + _rng.nextDouble() * 180;
+            final w = 4 + _rng.nextDouble() * 7;
+            final h = 2 + _rng.nextDouble() * 4;
+            final paint = Paint()..color = shardColors[i % shardColors.length];
+            return AcceleratedParticle(
+              speed: Vector2(math.cos(a), math.sin(a)) * speed,
+              acceleration: Vector2(0, 160),
+              child: RotatingParticle(
+                to: (_rng.nextDouble() - 0.5) * 16,
+                child: ComputedParticle(
+                  renderer: (canvas, particle) {
+                    paint.color = paint.color.withValues(
+                      alpha: (1 - particle.progress).clamp(0.0, 1.0),
+                    );
+                    canvas.drawRect(
+                      Rect.fromCenter(center: Offset.zero, width: w, height: h),
+                      paint,
+                    );
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    // Glowing embers that drift and fade.
+    add(
+      ParticleSystemComponent(
+        position: at,
+        priority: 19,
+        particle: Particle.generate(
+          count: 18,
+          lifespan: 1.4,
+          generator: (i) {
+            final a = _rng.nextDouble() * math.pi * 2;
+            final speed = 20 + _rng.nextDouble() * 90;
+            final paint = Paint()
+              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+            final radius = 4 + _rng.nextDouble() * 6;
+            return AcceleratedParticle(
+              speed: Vector2(math.cos(a), math.sin(a)) * speed,
+              acceleration: Vector2(0, -20),
+              child: ComputedParticle(
+                renderer: (canvas, particle) {
+                  final t = particle.progress;
+                  paint.color = Color.lerp(
+                    const Color(0xFFFFE082),
+                    const Color(0xFFFF5252),
+                    t,
+                  )!
+                      .withValues(alpha: (1 - t) * 0.8);
+                  canvas.drawCircle(Offset.zero, radius * (1 - t * 0.5), paint);
+                },
               ),
             );
           },

@@ -16,13 +16,15 @@ class Coin extends PositionComponent with HasGameReference<SkyDodgerGame> {
           priority: 2,
         );
 
-  static const double radius = 13;
+  static const double radius = 14;
   final double speed;
   double _time = 0;
 
-  static final _outer = Paint()..color = const Color(0xFFFFC107);
-  static final _inner = Paint()..color = const Color(0xFFFFE082);
-  static final _shine = Paint()..color = const Color(0xFFFFFFFF);
+  static final _glow = Paint()
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+  static final _spritePaint = Paint()..filterQuality = FilterQuality.medium;
+  static final _spriteSize = Vector2.all(radius * 2);
+  static final _spritePos = Vector2.all(-radius);
 
   @override
   Future<void> onLoad() async {
@@ -48,14 +50,22 @@ class Coin extends PositionComponent with HasGameReference<SkyDodgerGame> {
 
   @override
   void render(Canvas canvas) {
+    // Pulsing golden halo.
+    final pulse = 0.35 + 0.2 * math.sin(_time * 6);
+    _glow.color = Color.fromRGBO(255, 202, 40, pulse);
+    canvas.drawCircle(const Offset(radius, radius), radius * 1.3, _glow);
+
     // Fake a spinning coin by squashing it horizontally.
-    final squash = 0.35 + 0.65 * math.cos(_time * 5).abs();
+    final squash = 0.3 + 0.7 * math.cos(_time * 4.5).abs();
     canvas.save();
     canvas.translate(radius, radius);
     canvas.scale(squash, 1);
-    canvas.drawCircle(Offset.zero, radius, _outer);
-    canvas.drawCircle(Offset.zero, radius * 0.66, _inner);
-    canvas.drawCircle(Offset(-radius * 0.3, -radius * 0.35), radius * 0.18, _shine);
+    game.sprites.coin.render(
+      canvas,
+      position: _spritePos,
+      size: _spriteSize,
+      overridePaint: _spritePaint,
+    );
     canvas.restore();
   }
 }

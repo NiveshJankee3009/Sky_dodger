@@ -11,7 +11,7 @@ import 'rock.dart';
 /// The player's ship. Follows horizontal drags and collides with rocks/coins.
 class Player extends PositionComponent
     with CollisionCallbacks, HasGameReference<SkyDodgerGame> {
-  Player() : super(size: Vector2(44, 54), anchor: Anchor.center, priority: 5);
+  Player() : super(size: Vector2(50, 61), anchor: Anchor.center, priority: 5);
 
   /// How far above the bottom edge the ship flies.
   static const double bottomMargin = 120;
@@ -23,11 +23,15 @@ class Player extends PositionComponent
   double _time = 0;
   bool visible = true;
 
-  final _hullPaint = Paint()..color = const Color(0xFF4FC3F7);
-  final _wingPaint = Paint()..color = const Color(0xFF0288D1);
-  final _cockpitPaint = Paint()..color = const Color(0xFFE1F5FE);
   final _flamePaint = Paint()..color = const Color(0xFFFFA726);
   final _flameCorePaint = Paint()..color = const Color(0xFFFFF59D);
+  final _glowPaint = Paint()
+    ..color = const Color(0x664FC3F7)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16);
+  final _flameGlowPaint = Paint()
+    ..color = const Color(0x99FF7043)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+  final _spritePaint = Paint()..filterQuality = FilterQuality.medium;
 
   @override
   Future<void> onLoad() async {
@@ -80,53 +84,41 @@ class Player extends PositionComponent
     final w = size.x;
     final h = size.y;
 
-    // Engine flame (flickers).
-    final flicker = 8 + 5 * math.sin(_time * 40).abs();
+    // Soft glow around the ship.
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(w / 2, h * 0.55), width: w * 1.1, height: h),
+      _glowPaint,
+    );
+
+    // Engine flame (flickers), drawn behind the sprite.
+    final flicker = 9 + 6 * math.sin(_time * 40).abs();
+    final top = h * 0.84;
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(w / 2, top + flicker * 0.6),
+        width: w * 0.3,
+        height: flicker * 1.6,
+      ),
+      _flameGlowPaint,
+    );
     canvas.drawPath(
       Path()
-        ..moveTo(w * 0.36, h * 0.86)
-        ..lineTo(w * 0.5, h * 0.86 + flicker + 6)
-        ..lineTo(w * 0.64, h * 0.86)
+        ..moveTo(w * 0.39, top)
+        ..lineTo(w * 0.5, top + flicker + 8)
+        ..lineTo(w * 0.61, top)
         ..close(),
       _flamePaint,
     );
     canvas.drawPath(
       Path()
-        ..moveTo(w * 0.43, h * 0.86)
-        ..lineTo(w * 0.5, h * 0.86 + flicker * 0.6)
-        ..lineTo(w * 0.57, h * 0.86)
+        ..moveTo(w * 0.44, top)
+        ..lineTo(w * 0.5, top + flicker * 0.6)
+        ..lineTo(w * 0.56, top)
         ..close(),
       _flameCorePaint,
     );
 
-    // Wings.
-    canvas.drawPath(
-      Path()
-        ..moveTo(w * 0.5, h * 0.35)
-        ..lineTo(w, h * 0.82)
-        ..lineTo(w * 0.62, h * 0.78)
-        ..lineTo(w * 0.38, h * 0.78)
-        ..lineTo(0, h * 0.82)
-        ..close(),
-      _wingPaint,
-    );
-
-    // Hull.
-    canvas.drawPath(
-      Path()
-        ..moveTo(w * 0.5, 0)
-        ..quadraticBezierTo(w * 0.72, h * 0.45, w * 0.64, h * 0.88)
-        ..lineTo(w * 0.36, h * 0.88)
-        ..quadraticBezierTo(w * 0.28, h * 0.45, w * 0.5, 0)
-        ..close(),
-      _hullPaint,
-    );
-
-    // Cockpit.
-    canvas.drawOval(
-      Rect.fromCenter(center: Offset(w * 0.5, h * 0.38), width: 10, height: 16),
-      _cockpitPaint,
-    );
+    game.sprites.ship.render(canvas, size: size, overridePaint: _spritePaint);
   }
 
   @override
