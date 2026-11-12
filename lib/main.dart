@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'game/audio_manager.dart';
 import 'game/high_score_store.dart';
 import 'game/sky_dodger_game.dart';
+import 'online/online_service.dart';
 import 'ui/overlays.dart';
 
 Future<void> main() async {
@@ -17,9 +18,14 @@ Future<void> main() async {
   final highScores = await HighScoreStore.load();
   final audio = await AudioManager.load();
   unawaited(audio.init()); // load sounds in the background, start music
+  final online = OnlineService();
+  // Firebase starts locally (no network needed); the game works without it.
+  await online.init().timeout(const Duration(seconds: 5), onTimeout: () {});
 
   runApp(
-    SkyDodgerApp(game: SkyDodgerGame(highScores: highScores, audio: audio)),
+    SkyDodgerApp(
+      game: SkyDodgerGame(highScores: highScores, audio: audio, online: online),
+    ),
   );
 }
 

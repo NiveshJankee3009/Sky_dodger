@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "69295081309",
+    "project_id": "sky-dodger-6ca18",
+    "storage_bucket": "sky-dodger-6ca18.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:69295081309:android:4bc31ca959edd3dc32cab4",
+        "android_client_info": {
+          "package_name": "com.github.skydodger.sky_dodger"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "69295081309-hm9cnb4i1nbfkm2i71j6b7oq4csk7soj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.github.skydodger.sky_dodger",
+            "certificate_hash": "f62c3c6030a5ad02be19a70e74db189f47b3cd05"
+          }
+        },
+        {
+          "client_id": "69295081309-grdjeqe51ihaq6k6030hcohim6f338q4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzRUDEGbaeL6oPeEWv2edpWFIZ2lhimL8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "69295081309-grdjeqe51ihaq6k6030hcohim6f338q4.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "69295081309-2v78l3cslvjcm7lu1q1l3njfpoo49usm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.github.skydodger.skyDodger"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

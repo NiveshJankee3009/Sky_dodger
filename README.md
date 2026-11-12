@@ -15,6 +15,7 @@ Drag anywhere on the screen to steer your ship, dodge the falling rocks and grab
 - Animated main menu with glowing title, plus a nebula backdrop in game
 - Pause menu (also pauses automatically when you leave the app)
 - High score saved locally
+- Google sign-in, nicknames and a global leaderboard (This week / All time) via Firebase
 - Android **and** iOS from the same code
 - No image assets: everything is drawn in code, and all audio is synthesized by `tool/make_audio.py` (sound effects) and `tool/music_upbeat.py` (music)
 
@@ -58,6 +59,14 @@ Apple only lets signed apps onto iPhones, so the unsigned IPA needs signing firs
 - **Free, with a Mac:** open the project in Xcode / run `flutter run --release` with the iPhone plugged in.
 - **For everyone (TestFlight / App Store):** requires a paid Apple Developer Program membership; then the iOS job can be extended to sign and upload automatically.
 
+## Online features (Firebase)
+
+- `firebase/` holds the Firebase config files (`google-services.json`, `GoogleService-Info.plist`). They are not secret; access is controlled by `firestore.rules`.
+- After changing them, run `python3 tool/gen_firebase_options.py` to regenerate `lib/online/firebase_options.dart`.
+- `firestore.rules` must be published in Firebase console → Firestore Database → Rules.
+- Android builds are signed with a fixed key from the GitHub secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_ALIAS`; its SHA-1/SHA-256 must be registered on the Firebase Android app for Google sign-in to work.
+- Without Firebase config the game runs fine; the online buttons are simply hidden.
+
 ## Project layout
 
 ```
@@ -74,10 +83,18 @@ lib/
       coin.dart                Collectible coins
       starfield.dart           Parallax background
       touch_area.dart          Full-screen drag input
+  online/
+    online_service.dart        Google sign-in, nicknames, leaderboard (Firebase)
+    online_rules.dart          Nickname validation, week ids (pure Dart)
+    firebase_options.dart      Generated from firebase/ config files
   ui/
     overlays.dart              Menu, HUD, pause and game-over screens
+    online_screens.dart        Leaderboard and nickname screens
 assets/audio/                  Music and sound effects (mp3: plays on Android and iOS)
+firestore.rules                Leaderboard security rules (publish in Firebase console)
 tool/
+  ci/prepare_platform.sh       CI: generates android/ios folders, app name, iOS URL scheme
+  gen_firebase_options.py      Builds firebase_options.dart from firebase/ files
   make_audio.py                Regenerates the sound effects (python3 + numpy + scipy + ffmpeg)
   music_upbeat.py              Regenerates the music: python3 tool/music_upbeat.py assets/audio
 test/

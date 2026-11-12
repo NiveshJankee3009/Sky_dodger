@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -15,6 +16,7 @@ import 'components/touch_area.dart';
 import 'audio_manager.dart';
 import 'difficulty.dart';
 import 'high_score_store.dart';
+import '../online/online_service.dart';
 
 enum GameState { menu, playing, paused, gameOver }
 
@@ -30,11 +32,16 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
   SkyDodgerGame({
     required this.highScores,
     required this.audio,
+    required this.online,
     math.Random? random,
   }) : _rng = random ?? math.Random();
 
   final HighScoreStore highScores;
   final AudioManager audio;
+  final OnlineService online;
+
+  /// Leaderboard result for the last run, shown on the game-over screen.
+  final ValueNotifier<String?> onlineStatus = ValueNotifier(null);
   final math.Random _rng;
   final Difficulty difficulty = const Difficulty();
   final ScoreKeeper scoreKeeper = ScoreKeeper();
@@ -74,6 +81,7 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
     _rockTimer = 0;
     _coinTimer = 1.5;
     lastRunWasRecord = false;
+    onlineStatus.value = null;
     player.reset();
     state = GameState.playing;
     audio.play(Sfx.start);
@@ -119,6 +127,7 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
     _explode(player.position.clone());
 
     lastRunWasRecord = await highScores.submit(scoreKeeper.score);
+    unawaited(_submitOnline(scoreKeeper.score));
 
     // Let the explosion play before showing the results screen.
     add(
@@ -133,6 +142,24 @@ class SkyDodgerGame extends FlameGame with HasCollisionDetection {
         },
       ),
     );
+  }
+
+  Future<void> _submitOnline(int finalScore) async {
+    if (!online.available) return;
+    final p = online.player.value;
+    if (p == null || p.nickname == null) {
+      onlineStatus.value = 'signin';
+      return;
+    }
+    onlineStatus.value = 'Sending to leaderboard…';
+    final result = await online.submitScore(finalScore);
+    if (result == null || result.weeklyRank == null) {
+      onlineStatus.value = 'Could not reach the leaderboard';
+      return;
+    }
+    final allTime =
+        result.allTimeRank == null ? '' : '  •  #${result.allTimeRank} all time';
+    onlineStatus.value = '#${result.weeklyRank} this week$allTime';
   }
 
   void collectCoin(Coin coin) {

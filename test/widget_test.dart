@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sky_dodger/game/difficulty.dart';
 import 'package:sky_dodger/game/high_score_store.dart';
+import 'package:sky_dodger/online/online_rules.dart';
 
 void main() {
   group('Difficulty', () {
@@ -44,6 +45,39 @@ void main() {
       expect(await store.submit(120), isTrue);
       expect(await store.submit(80), isFalse);
       expect(store.best, 120);
+    });
+  });
+
+  group('Nicknames', () {
+    test('accepts good names', () {
+      expect(validateNickname('Nivesh'), isNull);
+      expect(validateNickname('ace_pilot_99'), isNull);
+    });
+
+    test('rejects bad names', () {
+      expect(validateNickname('ab'), isNotNull);
+      expect(validateNickname('a' * 16), isNotNull);
+      expect(validateNickname('has space'), isNotNull);
+      expect(validateNickname('12345'), isNotNull);
+      expect(validateNickname('Sh1t_head'), isNotNull);
+    });
+
+    test('key is case-insensitive', () {
+      expect(nicknameKey('  NiVeSh '), 'nivesh');
+    });
+  });
+
+  group('isoWeekId', () {
+    test('known dates', () {
+      expect(isoWeekId(DateTime.utc(2026, 11, 12)), '2026-W46');
+      expect(isoWeekId(DateTime.utc(2026, 1, 1)), '2026-W01');
+      expect(isoWeekId(DateTime.utc(2027, 1, 1)), '2026-W53');
+      expect(isoWeekId(DateTime.utc(2024, 12, 30)), '2025-W01');
+    });
+
+    test('changes on Monday 00:00 UTC', () {
+      expect(isoWeekId(DateTime.utc(2026, 11, 15, 23, 59)), '2026-W46');
+      expect(isoWeekId(DateTime.utc(2026, 11, 16)), '2026-W47');
     });
   });
 }

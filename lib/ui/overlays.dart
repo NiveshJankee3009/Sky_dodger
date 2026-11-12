@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../game/audio_manager.dart';
 import '../game/sky_dodger_game.dart';
+import '../online/online_service.dart';
+import 'online_screens.dart';
 
 const _cyan = Color(0xFF4FC3F7);
 const _violet = Color(0xFFB388FF);
@@ -30,7 +32,9 @@ class MenuOverlay extends StatelessWidget {
         ),
       ),
       child: SafeArea(
-        child: Column(
+        child: Stack(
+          children: [
+            Positioned.fill(child: Column(
           children: [
             const Spacer(flex: 3),
             const _FloatingTitle(),
@@ -81,7 +85,18 @@ class MenuOverlay extends StatelessWidget {
               pulse: true,
               onPressed: game.start, // start() plays its own sound
             ),
-            const SizedBox(height: 36),
+            if (game.online.available) ...[
+              const SizedBox(height: 14),
+              _OutlineButton(
+                label: 'LEADERBOARD',
+                icon: Icons.leaderboard_rounded,
+                onPressed: () {
+                  game.audio.play(Sfx.click);
+                  openLeaderboard(context, game.online);
+                },
+              ),
+            ],
+            const SizedBox(height: 30),
             _AudioToggles(audio: game.audio),
             const Spacer(flex: 2),
             Padding(
@@ -99,6 +114,14 @@ class MenuOverlay extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+        )),
+            if (game.online.available)
+              Positioned(
+                top: 8,
+                right: 12,
+                child: _AccountChip(game: game),
+              ),
           ],
         ),
       ),
@@ -257,6 +280,10 @@ class GameOverOverlay extends StatelessWidget {
                   ),
                 ],
               ),
+            if (game.online.available) ...[
+              const SizedBox(height: 12),
+              _OnlineStatus(game: game),
+            ],
             const SizedBox(height: 28),
             _GlowButton(
               label: 'PLAY AGAIN',
@@ -278,7 +305,122 @@ class GameOverOverlay extends StatelessWidget {
   }
 }
 
+// =================================================================== ONLINE
+
+/// Top-right chip on the menu: "Sign in" or the player's nickname.
+class _AccountChip extends StatelessWidget {
+  const _AccountChip({required this.game});
+  final SkyDodgerGame game;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<OnlinePlayer?>(
+      valueListenable: game.online.player,
+      builder: (context, player, _) {
+        final label = player == null
+            ? 'Sign in'
+            : (player.nickname ?? 'Set nickname');
+        return ActionChip(
+          avatar: Icon(
+            player == null ? Icons.login_rounded : Icons.person_rounded,
+            size: 18,
+            color: _cyan,
+          ),
+          label: Text(label),
+          backgroundColor: Colors.white.withValues(alpha: 0.08),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+          onPressed: () async {
+            game.audio.play(Sfx.click);
+            if (player?.nickname != null) {
+              await openLeaderboard(context, game.online);
+            } else {
+              await ensureOnlineProfile(context, game.online);
+            }
+          },
+        );
+      },
+    );
+  }
+}
+
+/// Game-over line: leaderboard rank, or an invitation to sign in.
+class _OnlineStatus extends StatelessWidget {
+  const _OnlineStatus({required this.game});
+  final SkyDodgerGame game;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<String?>(
+      valueListenable: game.onlineStatus,
+      builder: (context, status, _) {
+        if (status == null) return const SizedBox.shrink();
+        if (status == 'signin') {
+          return TextButton.icon(
+            onPressed: () async {
+              final score = game.scoreKeeper.score;
+              if (await ensureOnlineProfile(context, game.online)) {
+                game.onlineStatus.value = 'Sending to leaderboard…';
+                final r = await game.online.submitScore(score);
+                game.onlineStatus.value = r?.weeklyRank == null
+                    ? 'Could not reach the leaderboard'
+                    : '#${r!.weeklyRank} this week'
+                        '${r.allTimeRank == null ? '' : '  •  #${r.allTimeRank} all time'}';
+              }
+            },
+            icon: const Icon(Icons.leaderboard_rounded),
+            label: const Text('Sign in to join the leaderboard'),
+          );
+        }
+        return GestureDetector(
+          onTap: () => openLeaderboard(context, game.online),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.public_rounded, color: _cyan, size: 18),
+              const SizedBox(width: 6),
+              Text(status, style: const TextStyle(color: _cyan, fontSize: 15)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 // =================================================================== PIECES
+
+class _OutlineButton extends StatelessWidget {
+  const _OutlineButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 240,
+      height: 50,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon),
+        label: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 2),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: BorderSide(color: _violet.withValues(alpha: 0.8), width: 1.5),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
+        ),
+      ),
+    );
+  }
+}
 
 /// Music and sound on/off buttons that remember their state.
 class _AudioToggles extends StatelessWidget {
